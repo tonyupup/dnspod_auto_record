@@ -95,7 +95,7 @@ Record *getItems(const char *lt, const char *domain)
 
     if (httpRequest(curl, &p))
         goto FAILED;
-    printf("get content size :%d.\n", strlen(p));
+    printf("get content size :%d.\n", (int)strlen(p));
     doc = xmlReadMemory(p, strlen(p), "in_memory.xml", "UTF-8", 0);
     xmlXPathContextPtr content = xmlXPathNewContext(doc);
     //
@@ -415,6 +415,7 @@ Record *getRecodeList(char *interface)
         perror("getifaddrs");
         return r.next;
     }
+    int v4flag = FALSE, v6flag = FALSE;
     for (ifa = ifaddr; ifa != NULL; ifa = ifa->ifa_next)
     { //&& !strcmp(ifa->ifa_name, interface)
         if (ifa->ifa_name && ifa->ifa_addr)
@@ -427,7 +428,7 @@ Record *getRecodeList(char *interface)
                 inet_ntop(AF_INET, &(s6->sin_addr), ip_str, sizeof(ip_str));
                 if (!strncmp(ip_str, "192.168", 7) || !strncmp(ip_str, "127.0.0.1", 9) || !strncmp(ip_str, "10.", 3) || !strncmp(ip_str, "172.16", 6))
                     continue;
-                else
+                else if (!v4flag)
                 {
                     Record *pr = (Record *)malloc(sizeof(Record));
                     memset(pr, 0, sizeof(Record));
@@ -435,6 +436,7 @@ Record *getRecodeList(char *interface)
                     strcpy(pr->type, "A");
                     pr->next = r.next;
                     r.next = pr;
+                    v4flag = TRUE;
                 }
             }
             else if (ifa->ifa_addr->sa_family == AF_INET6)
@@ -443,7 +445,7 @@ Record *getRecodeList(char *interface)
                 inet_ntop(AF_INET6, &(s6->sin6_addr), ip_str, sizeof(ip_str));
                 if (!strncmp(ip_str, "fe80::", 6) || !strncmp(ip_str, "::1", 3))
                     continue;
-                else
+                else if (!v6flag)
                 {
                     Record *pr = (Record *)malloc(sizeof(Record));
                     memset(pr, 0, sizeof(Record));
@@ -451,19 +453,18 @@ Record *getRecodeList(char *interface)
                     strcpy(pr->type, "AAAA");
                     pr->next = r.next;
                     r.next = pr;
+                    v6flag = TRUE;
                 }
             }
             else
                 continue;
-            if (r.next && record_id)
-                strcpy(r.next->rid, record_id);
             if (r.next && sub_domain)
                 strcpy(r.next->name, sub_domain);
-
             printf("%s [%d] %s\n", interface, cnt, ip_str);
             cnt++;
         }
     }
+
     freeifaddrs(ifaddr);
     return r.next;
 }

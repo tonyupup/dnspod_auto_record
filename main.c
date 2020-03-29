@@ -33,7 +33,7 @@ void init(int args, char **argv)
     if (!strlen(sub_domain))
     {
 
-        fprintf(stdout, "The SUB_DOMAIN not exists in Param or Environment,Used hostname\n");
+        fprintf(stdout, "The SUB_DOMAIN not exists in Param or Environment,Used hostname\n\n");
         help();
         gethostname(sub_domain, 50);
         for (int i = 0; i < strlen(sub_domain); i++)
@@ -55,11 +55,64 @@ void help()
     fprintf(stdout, "\t-h Help\n");
 }
 
+int fisrtRun()
+{
+    char setnv[100];
+
+    Record *iplist = getRecodeList("wlp2s0");
+    Record *clits = getItems(login_token, domain);
+    Record *tmp;
+    for (Record *r = iplist; r != NULL; r = r->next)
+    {
+        memset(setnv, 0, 100);
+        sprintf(setnv, "%s:%s", r->name, r->type);
+        for (tmp = clits; tmp; tmp = tmp->next)
+        {
+            if (!strcmp(tmp->name, r->name) && !strcmp(tmp->type, r->type))
+            {
+                strcpy(r->rid, (char *)tmp->rid);
+                break;
+            }
+        }
+    }
+
+    for (Record *r = iplist; r != NULL; r = r->next)
+    {
+        if (!strlen(r->rid)) //not exist.
+        {
+            if (createRecode(r))
+            {
+                freeRecordList(clits);
+                freeRecordList(iplist);
+                return -1;
+            }
+
+            else
+            {
+                memset(setnv, 0, 100);
+                sprintf(setnv, "%s:%s", r->name, r->type);
+                setenv(setnv, r->rid, 1);
+                setenv(r->rid, r->ip, 1);
+                printf("Create New Record of sub_domain:%s , type:%s ,value:%s.\n", r->name, r->type, r->ip);
+            }
+        }
+        else //reord exist.
+        {
+
+            if (strcmp(r->ip, tmp->ip))
+            {
+                modifyRecode(r);
+            }
+            setenv(setnv, r->rid, 1);
+            setenv(r->rid, r->ip, 1);
+        }
+    }
+    freeRecordList(clits);
+    freeRecordList(iplist);
+    return 0;
+}
 int main(int args, char **argv)
 {
-    char **ip;
-    char setnv[100];
-    memset(setnv, 0, 100);
 
     if (args > 1 && !strcmp(argv[1], "-h"))
     {
@@ -73,68 +126,41 @@ int main(int args, char **argv)
         fprintf(stderr, "curl init failed.\n");
         return -1;
     }
-    Record *r = getRecodeList("wlp2s0");
-    sprintf(setnv, "%s:%s", r->name, r->type);
-    Record *clits = getItems(login_token, domain);
-    Record *tmp = clits;
-    for (; tmp; tmp = tmp->next)
-    {
-        if (!strcmp(tmp->name, r->name) && !strcmp(tmp->type, r->type))
-        {
-            strcpy(r->rid, (char *)tmp->rid);
-            break;
-        }
-    }
-    if (!strlen(r->rid)) //not exist.
-    {
-        if (createRecode(r))
-            exit(-1);
-        else
-        {
-            memset(setnv, 0, 100);
-            sprintf(setnv, "%s:%s", r->name, r->type);
-            setenv(setnv, r->rid, 1);
-            setenv(r->rid, r->ip, 1);
-            printf("Create New Record of sub_domain:%s , type:%s ,value:%s.\n", r->name, r->type, r->ip);
-        }
-    }
-    else //reord exist.
-    {
-
-        if (strcmp(r->ip, tmp->ip))
-        {
-            modifyRecode(r);
-        }
-        setenv(setnv, r->rid, 1);
-        setenv(r->rid, r->ip, 1);
-    }
-    freeRecordList(clits);
-    freeRecordList(r);
-
+    if (fisrtRun())
+        exit(-1);
     int pid = fork();
     if (pid < 0)
         fprintf(stderr, "Fork Failed\n");
     else if (pid == 0)
     {
         //daemon
+        char setnv[100];
 
         for (;;)
         {
-            sleep(600);
-            r = getRecodeList("wlp2s0");
-            sprintf(setnv, "%s:%s", r->name, r->type);
-            char *rid = getenv(setnv);
-            if (rid && getenv(rid) && strcmp(r->ip, getenv(rid)))
+            sleep(60);
+            Record *r = getRecodeList("wlp2s0");
+            for (Record *tmp = r; tmp; tmp = tmp->next)
             {
-                modifyRecode(r);
-                setenv(getenv(rid), r->ip, 1);
+                memset(setnv, 0, 100);
+                sprintf(setnv, "%s:%s", r->name, r->type);
+                char *rid = getenv(setnv);
+                if (rid && getenv(rid) && strcmp(tmp->ip, getenv(rid)))
+                {
+                    if (!modifyRecode(tmp))
+                    {
+                        fprintf(stdout, "Modify record [%s]%s to ip %s (befor:%s)\n",
+                                tmp->type, tmp->name, tmp->ip, getenv(rid));
+                        setenv(rid, tmp->ip, 1);
+                    }
+                }
             }
             freeRecordList(r);
         }
     }
     else
     {
-        printf("sub program %d enable\n", pid);
+        printf("Sub program %d started\n", pid);
         curl_easy_cleanup(curl);
         exit(0);
     }
