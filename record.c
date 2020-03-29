@@ -441,12 +441,16 @@ Record *getRecodeList(char *interface)
             }
             else if (ifa->ifa_addr->sa_family == AF_INET6)
             {
+                char maskBuffer[100];
+                // sockaddr_in tmpMask = ((struct sockaddr_in *)(ifa->ifa_netmask))->sin_addr.s_addr;
+                inet_ntop(AF_INET6, &((struct sockaddr_in6 *)(ifa->ifa_netmask))->sin6_addr, maskBuffer, INET6_ADDRSTRLEN);
                 struct sockaddr_in6 *s6 = (struct sockaddr_in6 *)(ifa->ifa_addr);
                 inet_ntop(AF_INET6, &(s6->sin6_addr), ip_str, sizeof(ip_str));
-                if (!strncmp(ip_str, "fe80::", 6) || !strncmp(ip_str, "::1", 3))
+                if (!strncmp(ip_str, "fe80::", 6) || !strncmp(ip_str, "::1", 3) || strcmp(maskBuffer, "ffff:ffff:ffff:ffff::"))
                     continue;
                 else if (!v6flag)
                 {
+
                     Record *pr = (Record *)malloc(sizeof(Record));
                     memset(pr, 0, sizeof(Record));
                     strcpy(pr->ip, ip_str);
@@ -460,7 +464,7 @@ Record *getRecodeList(char *interface)
                 continue;
             if (r.next && sub_domain)
                 strcpy(r.next->name, sub_domain);
-            printf("%s [%d] %s\n", interface, cnt, ip_str);
+            printf("%s [%d] %s\n", ifa->ifa_name, cnt, ip_str);
             cnt++;
         }
     }
