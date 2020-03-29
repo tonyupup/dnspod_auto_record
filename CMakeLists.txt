@@ -1,0 +1,6 @@
+cmake_minimum_required (VERSION 2.8)
+project(autoRecord)
+aux_source_directory(. DIR_LIB_SRCS)
+add_executable(autoRecord ${DIR_LIB_SRCS})
+target_link_libraries(autoRecord curl)
+target_link_libraries(autoRecord xml2)
