@@ -95,7 +95,6 @@ Record *getItems(const char *lt, const char *domain)
 
     if (httpRequest(curl, &p))
         goto FAILED;
-    printf("get content size :%d.\n", (int)strlen(p));
     doc = xmlReadMemory(p, strlen(p), "in_memory.xml", "UTF-8", 0);
     xmlXPathContextPtr content = xmlXPathNewContext(doc);
     //
@@ -329,7 +328,104 @@ FAILED:
 }
 int deleteRecode(Record *r)
 {
+    char *p;
+    xmlDocPtr doc = NULL;
+    xmlXPathContextPtr contex = NULL;
+    xmlXPathObjectPtr result = NULL, result2 = NULL;
+    xmlKeepBlanksDefault(0);
+    char postfiled[200];
+
+    sprintf(postfiled,
+            "login_token=%s&domain=%s&format=xml&record_id=%s",
+            login_token, domain, r->rid);
+    curl_easy_setopt(curl, CURLOPT_URL, URL_RECORD_REMOVE);
+    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, postfiled);
+
+    int i = httpRequest(curl, &p);
+    if (i < 0)
+    {
+        fprintf(stderr, "Some Error happed.\n");
+        goto FAILED;
+    }
+    doc = xmlReadMemory(p, strlen(p), "in_memory.xml", "UTF-8", 0);
+    contex = xmlXPathNewContext(doc);
+    free(p);
+    if (!contex)
+        goto FAILED;
+    result = xmlXPathEvalExpression(BAD_CAST("//status/code"), contex);
+
+    if (!result || xmlXPathNodeSetIsEmpty(result->nodesetval))
+    {
+        fprintf(stdout, "result or nodeset is null\n");
+        goto FAILED;
+    }
+    xmlChar *status = xmlXPathCastNodeSetToString(result->nodesetval);
+    if (strcmp(status, "1"))
+    {
+        switch (atoi(status))
+        {
+
+        case -15:
+        {
+
+            fprintf(stderr, "域名已被封禁\n");
+            break;
+        }
+        case 6:
+        {
+
+            fprintf(stderr, "域名ID错误\n");
+            break;
+        }
+        case 7:
+        {
+
+            fprintf(stderr, "非域名所有者\n");
+            break;
+        }
+        case 8:
+        {
+
+            fprintf(stderr, "域名无效\n");
+            break;
+        }
+        case 17:
+        {
+
+            fprintf(stderr, "记录的值不正确\n");
+            break;
+        }
+        case 21:
+        {
+
+            fprintf(stderr, "域名被锁定\n");
+            break;
+        }
+        }
+        goto FAILED;
+    }
+    result2 = xmlXPathEvalExpression(BAD_CAST("//record/id"), contex);
+
+    xmlChar *recodeId = xmlXPathCastNodeSetToString(result->nodesetval);
+
+    strcpy(r->rid, recodeId);
+    xmlFree(recodeId);
+    xmlXPathFreeNodeSetList(result2);
+    xmlFreeDoc(doc);
+    xmlFree(status);
+    xmlXPathFreeContext(contex);
+    xmlXPathFreeNodeSetList(result);
+
     return 0;
+FAILED:
+    free(p);
+    xmlFree(recodeId);
+    xmlXPathFreeNodeSetList(result2);
+    xmlFreeDoc(doc);
+    xmlFree(status);
+    xmlXPathFreeContext(contex);
+    xmlXPathFreeNodeSetList(result);
+    return -1;
 }
 int modifyRecode(Record *r)
 {
@@ -402,7 +498,7 @@ FAILED:
     return -1;
 }
 
-Record *getRecodeList(char *interface)
+Record *getRecodeList()
 {
     Record r;
     memset(&r, 0, sizeof(Record));
@@ -448,7 +544,7 @@ Record *getRecodeList(char *interface)
                 struct sockaddr_in6 *s6 = (struct sockaddr_in6 *)(ifa->ifa_addr);
                 inet_ntop(AF_INET6, &(s6->sin6_addr), ip_str, sizeof(ip_str));
                 const char *ipend = ip_str + (strlen(ip_str) - 3);
-                if (!strncmp(ipend, "::1", 3) || !strncmp(ip_str, "fe80::", 6) || strcmp(maskBuffer, "ffff:ffff:ffff:ffff::"))
+                if (!strncmp(ipend, "::1", 3) || !strncmp(ip_str, "fe80::", 6) ||!strncmp(ip_str, "fd47", 4) || strcmp(maskBuffer, "ffff:ffff:ffff:ffff::"))
                     continue;
                 else if (!v6flag)
                 {

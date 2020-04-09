@@ -26,7 +26,7 @@ void init(int args, char **argv)
         fprintf(stderr, "The RECORD_LOGINTOKEN not exists in Environment\n");
         exit(-1);
     }
-    if (args > 1)
+    if (args > 1 && strcmp(argv[1], "-d"))
         strcpy(sub_domain, argv[1]);
     else if (getenv("RECORD_SUBDOMAIN"))
         strcpy(sub_domain, getenv("RECORD_SUBDOMAIN"));
@@ -52,6 +52,7 @@ void help()
 
     fprintf(stdout, "\tBefore using the program, RECORD_SUBDOMAIN and RECORD_DOMAIN must be provided as environment variables,if not provide SUB_DOMAIN ,the will used hostname \n");
     fprintf(stdout, "Example:\n\tRECORD_DOMAIN=xx.com RECORD_SUBDOMAIN=xxx autoRecord text\nOPTIONS:\n");
+    fprintf(stdout, "\t-d Delete current record\n");
     fprintf(stdout, "\t-h Help\n");
 }
 
@@ -59,7 +60,7 @@ int fisrtRun()
 {
     char setnv[100];
 
-    Record *iplist = getRecodeList("wlp2s0");
+    Record *iplist = getRecodeList();
     Record *clits = getItems(login_token, domain);
     Record *tmp;
     for (Record *r = iplist; r != NULL; r = r->next)
@@ -119,6 +120,30 @@ int main(int args, char **argv)
         help();
         exit(0);
     }
+    else if (args > 1 && !strcmp(argv[1], "-d"))
+    {
+        init(args, argv);
+        curl = curl_easy_init();
+        Record *r = getItems(login_token, domain);
+        while (r)
+        {
+            if (!strcmp(r->name, sub_domain))
+                break;
+            r = r->next;
+        }
+        if (!r)
+        {
+            printf("Record not found :%s.%s\n", sub_domain,domain);
+            freeRecordList(r);
+            return 0;
+        }
+
+        printf("%s,%s,%s", r->name, r->rid, r->ip);
+        deleteRecode(r);
+        freeRecordList(r);
+        return 0;
+    }
+
     init(args, argv);
     curl = curl_easy_init();
     if (!curl)
@@ -139,7 +164,7 @@ int main(int args, char **argv)
         for (;;)
         {
             sleep(60);
-            Record *r = getRecodeList("wlp2s0");
+            Record *r = getRecodeList();
             for (Record *tmp = r; tmp; tmp = tmp->next)
             {
                 memset(setnv, 0, 100);
