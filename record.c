@@ -4,10 +4,23 @@
 
 size_t writeData(void *buffer, size_t size, size_t nmemb, void **p)
 {
-    void *doc = malloc((size * nmemb + 1) * sizeof(char));
-    memset(doc, '\0', (size * nmemb + 1) * sizeof(char));
-    strncpy(doc, buffer, size * nmemb);
-    *p = doc;
+    if ((*p))
+    {
+        int len = strlen((char *)*p);
+        void *newbuf = malloc((size * nmemb + len) * sizeof(char));
+        memcpy(newbuf, *p, len);
+        memcpy(newbuf + len, buffer, size * nmemb);
+        free(*p);
+        *p = newbuf;
+    }
+    else
+    {
+        void *content = malloc((size * nmemb + 1) * sizeof(char));
+        memcpy(content, buffer, size * nmemb * sizeof(char));
+        ((char *)content)[size * nmemb] = '\0';
+        *(void **)p = content;
+    }
+
     return size * nmemb;
 }
 int httpRequest(CURL *curl, char **p)
@@ -17,16 +30,16 @@ int httpRequest(CURL *curl, char **p)
         fprintf(stderr, "curl init failed.\n");
         return -1;
     }
-
+    *p = NULL;
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeData);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)p);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, p);
+    // curl_easy_setopt(curl, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
     // curl_easy_setopt(curl,CURLOPT_HEADERFUNCTION,header_set);
     curl_easy_setopt(curl, CURLOPT_POST, 1); //设置问非0表示本次操作为post
     // curl_easy_setopt(curl, CURLOPT_VERBOSE, 1); //打印调试信息
     // curl_easy_setopt(curl, CURLOPT_HEADER, 0);  //将响应头信息和相应体一起传给write_data
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1);
     CURLcode res = curl_easy_perform(curl);
-
     if (res != CURLE_OK)
     {
         switch (res)
@@ -96,6 +109,9 @@ Record *getItems(const char *lt, const char *domain)
     if (httpRequest(curl, &p))
         goto FAILED;
     doc = xmlReadMemory(p, strlen(p), "in_memory.xml", "UTF-8", 0);
+    if (!doc)
+        goto FAILED;
+
     xmlXPathContextPtr content = xmlXPathNewContext(doc);
     //
     if (!content)
@@ -544,7 +560,7 @@ Record *getRecodeList()
                 struct sockaddr_in6 *s6 = (struct sockaddr_in6 *)(ifa->ifa_addr);
                 inet_ntop(AF_INET6, &(s6->sin6_addr), ip_str, sizeof(ip_str));
                 const char *ipend = ip_str + (strlen(ip_str) - 3);
-                if (!strncmp(ipend, "::1", 3) || !strncmp(ip_str, "fe80::", 6) ||!strncmp(ip_str, "fd47", 4) || strcmp(maskBuffer, "ffff:ffff:ffff:ffff::"))
+                if (!strncmp(ipend, "::1", 3) || !strncmp(ip_str, "fe80::", 6) || !strncmp(ip_str, "fd47", 4) || strcmp(maskBuffer, "ffff:ffff:ffff:ffff::"))
                     continue;
                 else if (!v6flag)
                 {

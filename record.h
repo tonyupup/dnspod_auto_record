@@ -15,7 +15,7 @@
 #define URL_RECORD_CREATE "https://dnsapi.cn/Record.Create"
 #define URL_RECORD_MODIFY "https://dnsapi.cn/Record.Modify"
 #define URL_RECORD_REMOVE "https://dnsapi.cn/Record.Remove"
-
+#define HTMLBUFF_SIZE 1000
 
 xmlNodePtr dfs(xmlNodePtr, const char *);
 int httpRequest(CURL *curl, char **);
