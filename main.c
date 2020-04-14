@@ -99,13 +99,18 @@ int fisrtRun()
         }
         else //reord exist.
         {
-
-            if (strcmp(r->ip, tmp->ip))
+            for (tmp = clits; tmp != NULL; tmp = tmp->next)
             {
-                modifyRecode(r);
+                if (0!=strcmp(tmp->rid , r->rid))
+                    continue;
+                if (strcmp(r->ip, tmp->ip))
+                {
+                    modifyRecode(r);
+                }
+                setenv(setnv, r->rid, 1);
+                setenv(r->rid, r->ip, 1);
+                break;
             }
-            setenv(setnv, r->rid, 1);
-            setenv(r->rid, r->ip, 1);
         }
     }
     freeRecordList(clits);
@@ -133,7 +138,7 @@ int main(int args, char **argv)
         }
         if (!r)
         {
-            printf("Record not found :%s.%s\n", sub_domain,domain);
+            printf("Record not found :%s.%s\n", sub_domain, domain);
             freeRecordList(r);
             return 0;
         }

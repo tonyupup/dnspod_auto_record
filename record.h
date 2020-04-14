@@ -28,7 +28,7 @@ extern char sub_domain[50];
 typedef struct Record
 {
     char rid[15];
-    char ip[50];
+    char ip[100];
     char type[5];
     char name[50];
     struct Record *next;
