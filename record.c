@@ -538,7 +538,7 @@ Record *getRecodeList()
 
                 struct sockaddr_in *s6 = (struct sockaddr_in *)(ifa->ifa_addr);
                 inet_ntop(AF_INET, &(s6->sin_addr), ip_str, sizeof(ip_str));
-                if (!strncmp(ip_str, "192.168", 7) || !strncmp(ip_str, "127.0.0.1", 9) || !strncmp(ip_str, "10.", 3) || !strncmp(ip_str, "172.16", 6))
+                if (!strncmp(ip_str, "169.254", 7) ||!strncmp(ip_str, "192.168", 7) || !strncmp(ip_str, "127.0.0.1", 9) || !strncmp(ip_str, "10.", 3) || !strncmp(ip_str, "172.16", 6))
                     continue;
                 else if (!v4flag)
                 {
